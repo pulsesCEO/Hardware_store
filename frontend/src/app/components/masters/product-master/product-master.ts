@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MasterService } from '../../../services/master';
+import { SettingsService } from '../../../services/settings'; 
 
 @Component({
   selector: 'app-product-master',
@@ -13,14 +14,26 @@ import { MasterService } from '../../../services/master';
 })
 export class ProductMaster implements OnInit {
   products: any[] = [];
+  isInventoryEnabled: boolean = true; // Default to true
   endpoint = 'products'; 
   searchTerm = '';
   currentPage: number = 1;
   pageSize: number = 5;
 
-  constructor(private masterService: MasterService, private router: Router) {}
+  constructor(private masterService: MasterService, private router: Router, private settingsService: SettingsService) {}
 
-  ngOnInit() { this.loadData(); }
+  ngOnInit() {
+     this.loadData(); 
+     this.checkModuleSettings();
+     } 
+     
+    checkModuleSettings() {
+    this.settingsService.getSettings().subscribe(settings => {
+      const enabledModules = settings.enabled_modules || [];
+      // If 'inventory' is in the enabled_modules array, this is true
+      this.isInventoryEnabled = enabledModules.includes('inventory');
+    });
+  }
 
   loadData() {
     this.masterService.getAll<any>(this.endpoint).subscribe(data => {

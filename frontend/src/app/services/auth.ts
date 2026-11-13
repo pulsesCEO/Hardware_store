@@ -79,4 +79,8 @@ updateUser(id: number, userData: any): Observable<any> {
 deleteUser(id: number): Observable<any> {
   return this.http.delete(`${this.apiUrl}/users/${id}`, { headers: this.getAuthHeaders() });
 }
+  // Add this function to update the modules for a specific user
+  updateUserModules(id: number, payload: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/users/${id}/modules`, payload, { headers: this.getAuthHeaders() });
+  }
 }

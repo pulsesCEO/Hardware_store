@@ -1,1 +1,226 @@
-<p>purchases works!</p>
+<div class="p-8 max-w-7xl mx-auto w-full">
+  
+  <!-- Header & Tabs -->
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Purchase Management</h1>
+      <p class="text-gray-500 text-sm mt-1">Record new shipments and view past purchases.</p>
+    </div>
+    
+    <!-- Tab Switcher -->
+    <div class="flex bg-gray-100 p-1 rounded-xl shadow-sm">
+      <button (click)="activeTab = 'add'" 
+              [ngClass]="activeTab === 'add' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+              class="px-6 py-2 rounded-lg text-sm font-semibold transition-all">
+        Receive Shipment
+      </button>
+      <button (click)="activeTab = 'list'" 
+              [ngClass]="activeTab === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+              class="px-6 py-2 rounded-lg text-sm font-semibold transition-all">
+        Purchase History
+      </button>
+    </div>
+  </div>
+
+  <!-- Success/Error Message -->
+  @if (message) {
+    <div class="px-4 py-3 rounded-xl mb-6 shadow-sm border flex items-center"
+         [ngClass]="isError ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'">
+      {{ message }}
+    </div>
+  }
+
+  <!-- ========================================== -->
+  <!-- TAB 1: RECEIVE SHIPMENT (FORM) -->
+  <!-- ========================================== -->
+  @if (activeTab === 'add') {
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- LEFT: Build the Purchase -->
+      <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <div class="mb-6">
+          <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Inbound Stock</p>
+          <h2 class="text-xl font-bold text-gray-800">Add Items to Shipment</h2>
+        </div>
+
+        <!-- Supplier Select -->
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Select Supplier / Trader <span class="text-red-500">*</span></label>
+          <select [(ngModel)]="selectedSupplierId" 
+                  class="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50">
+            <option [ngValue]="null" disabled>Choose a supplier...</option>
+            @for (sup of suppliers; track sup.id) {
+              <option [ngValue]="sup.id">{{ sup.company_name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Add Item Row -->
+        <div class="flex flex-col md:flex-row gap-3 items-end mb-8 bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div class="flex-1 w-full">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Product</label>
+            <select [(ngModel)]="selectedProductId" (change)="onProductSelect()"
+                    class="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white">
+              <option [ngValue]="null" disabled>Select product...</option>
+              @for (prod of products; track prod.id) {
+                <option [ngValue]="prod.id">{{ prod.name }} ({{ prod.unit?.short_name }})</option>
+              }
+            </select>
+          </div>
+          <div class="w-24">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Qty</label>
+            <input type="number" [(ngModel)]="quantity" min="1" class="w-full border border-gray-300 p-2.5 rounded-lg text-center text-sm outline-none">
+          </div>
+          <div class="w-28">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Cost Price</label>
+            <input type="number" [(ngModel)]="costPrice" class="w-full border border-gray-300 p-2.5 rounded-lg text-right text-sm outline-none">
+          </div>
+          <button (click)="addItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow-sm font-medium transition-colors w-full md:w-auto">
+            + Add
+          </button>
+        </div>
+
+        <!-- Cart Items -->
+        @if (cart.length === 0) {
+          <div class="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            <p class="text-gray-500 font-medium">Add items to the shipment list</p>
+          </div>
+        } @else {
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-gray-50 text-gray-600 border-b">
+                <tr>
+                  <th class="p-3">Item</th>
+                  <th class="p-3 text-center">Qty</th>
+                  <th class="p-3 text-right">Cost</th>
+                  <th class="p-3 text-right">Total</th>
+                  <th class="p-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of cart; track item.product_id; let i = $index) {
+                  <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="p-3 font-medium text-gray-800">{{ item.name }}</td>
+                    <td class="p-3 text-center">{{ item.quantity }} <span class="text-xs text-gray-400">{{ item.unit }}</span></td>
+                    <td class="p-3 text-right">₹{{ item.cost_price }}</td>
+                    <td class="p-3 text-right font-bold">₹{{ item.total_price }}</td>
+                    <td class="p-3 text-center">
+                      <button (click)="removeItem(i)" class="text-red-500 hover:text-red-700">
+                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <!-- RIGHT: Summary & Save -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 h-fit">
+        <div class="mb-6">
+          <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Settlement</p>
+          <h2 class="text-xl font-bold text-gray-800">Purchase Summary</h2>
+        </div>
+
+        <div class="space-y-3 mb-6 border-b border-gray-100 pb-6">
+          <div class="flex justify-between text-gray-500 text-sm">
+            <span>Sub Total</span>
+            <span>₹{{ subTotal | number:'1.2-2' }}</span>
+          </div>
+          <div class="flex justify-between text-gray-500 text-sm">
+            <span>Tax (GST)</span>
+            <span>₹{{ taxTotal | number:'1.2-2' }}</span>
+          </div>
+          <div class="flex justify-between items-center pt-2">
+            <span class="text-gray-800 font-semibold">Total Cost</span>
+            <span class="text-3xl font-bold text-gray-900">₹{{ grandTotal | number:'1.2-2' }}</span>
+          </div>
+        </div>
+
+        <!-- Credit Checkbox -->
+        <div class="flex items-center mb-6">
+          <input type="checkbox" id="credit" [(ngModel)]="isCreditPurchase" 
+                 class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer">
+          <label for="credit" class="ml-2 text-sm font-medium text-gray-700 cursor-pointer">
+            Buy on Supplier Credit (Pay Later)
+          </label>
+        </div>
+
+        <button (click)="savePurchase()" [disabled]="isSaving || cart.length === 0 || !selectedSupplierId"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl shadow-lg shadow-blue-500/30 font-bold text-lg transition-all disabled:opacity-50 flex justify-center items-center">
+          @if (isSaving) {
+            Saving...
+          } @else {
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Save Shipment
+          }
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================== -->
+  <!-- TAB 2: PURCHASE HISTORY (LIST) -->
+  <!-- ========================================== -->
+  @if (activeTab === 'list') {
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-lg font-bold text-gray-800">Recent Purchases</h2>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider font-semibold border-b border-gray-200">
+            <tr>
+              <th class="p-4">Date & Bill No.</th>
+              <th class="p-4">Supplier</th>
+              <th class="p-4">Items Received</th>
+              <th class="p-4 text-right">Total Amount</th>
+              <th class="p-4 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (purchase of purchases; track purchase.id) {
+              <tr class="border-b border-gray-100 hover:bg-blue-50/30 transition-colors">
+                <td class="p-4">
+                  <div class="font-bold text-gray-800">{{ purchase.purchase_no }}</div>
+                  <div class="text-xs text-gray-500">{{ purchase.createdAt | date:'MMM d, y' }}</div>
+                </td>
+                <td class="p-4 font-medium text-gray-700">
+                  @for (sup of suppliers; track sup.id) {
+                    @if (sup.id === purchase.supplier_id) {
+                      {{ sup.company_name }}
+                    }
+                  }
+                </td>
+                <td class="p-4 text-sm text-gray-600">
+                  @for (item of purchase.items; track item.id) {
+                    <div class="mb-1">
+                      {{ item.product?.name }} ({{ item.quantity }} {{ item.product?.unit?.short_name }})
+                    </div>
+                  }
+                </td>
+                <td class="p-4 text-right font-bold text-gray-900">₹{{ purchase.total_amount }}</td>
+                <td class="p-4 text-center">
+                  <span class="px-3 py-1 rounded-full text-xs font-bold"
+                        [ngClass]="purchase.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
+                    {{ purchase.status }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="p-8 text-center text-gray-500">
+                  No purchase history found. Record a shipment to get started.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

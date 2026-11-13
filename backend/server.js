@@ -6,6 +6,8 @@ const fs = require('fs');
 require('dotenv').config();
 
 const sequelize = require('./config/database'); 
+
+// 1. ROUTES
 const settingsRoutes = require('./routes/settingsRoutes');  
 const unitRoutes = require('./routes/unitRoutes'); 
 const customerRoutes = require('./routes/mastersRoutes/customerRoutes'); 
@@ -15,32 +17,48 @@ const gstRoutes = require('./routes/mastersRoutes/gstRoutes');
 const bankRoutes = require('./routes/mastersRoutes/bankRoutes'); 
 const authRoutes = require('./routes/authRoutes');
 const salesRoutes = require('./routes/salesRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes'); 
+const purchaseRoutes = require('./routes/purchaseRoutes');
+
+// 2. MODELS (For Relationships)
+const Product = require('./models/mastersModel/productModel');
+const Unit = require('./models/unitModel');
+const Gst = require('./models/mastersModel/gstModel');
+const Supplier = require('./models/mastersModel/supplierModel');
+const Purchase = require('./models/salesModel/purchaseModel');
+const PurchaseItem = require('./models/salesModel/purchaseItemModel');
+const ledgerRoutes = require('./routes/ledgerRoutes');
+const User = require('./models/userModel');
+// ==========================================
+// 👇 3. DATABASE RELATIONSHIPS (Centralized)
+// ==========================================
+Product.belongsTo(Unit, { foreignKey: 'unit_id', as: 'unit' });
+Product.belongsTo(Gst, { foreignKey: 'gst_id', as: 'gst' });
+Purchase.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier' });
+Purchase.hasMany(PurchaseItem, { foreignKey: 'purchase_id', as: 'items' });
+PurchaseItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+Product.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
 const app = express();
 
 // ==========================================
-// 👇 PKG FIX: Point folders to the .exe location
+// PKG FIX
 // ==========================================
 const isPkg = typeof process.pkg !== 'undefined';
 const baseDir = isPkg ? path.dirname(process.execPath) : __dirname;
 
-// Create 'uploads' folder automatically if it doesn't exist
 const uploadsDir = path.join(baseDir, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
     console.log(`📁 Created uploads folder at: ${uploadsDir}`);
 }
 
-// ==========================================
-// 1. MIDDLEWARE
-// ==========================================
+// MIDDLEWARE
 app.use(cors()); 
 app.use(express.json()); 
 app.use('/uploads', express.static(uploadsDir)); 
 
-// ==========================================
-// 2. ROUTES
-// ==========================================
+// ROUTES USAGE
 app.use('/api/masters/units', unitRoutes); 
 app.use('/api/masters/customers', customerRoutes);
 app.use('/api/masters/suppliers', supplierRoutes);
@@ -49,8 +67,11 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/masters/gst', gstRoutes);
 app.use('/api/masters/banks', bankRoutes);
 app.use('/api/sales', salesRoutes);
-app.use('/api/auth', authRoutes);
-// Health Check
+app.use('/api/auth', authRoutes); 
+app.use('/api/inventory', inventoryRoutes); 
+app.use('/api/purchases', purchaseRoutes);
+app.use('/api/ledgers', ledgerRoutes);
+
 app.get('/api/health', async (req, res) => {
     try {
         await sequelize.authenticate();
@@ -60,31 +81,20 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// ==========================================
-// 3. START SERVER
-// ==========================================
-// ==========================================
-// 3. START SERVER
-// ==========================================
 const PORT = process.env.PORT || 5000;
 
-// 👇 Changed { alter: true } to just sync() for pendrive safety
-sequelize.sync({ alter: true }).then(async () => { // <-- Notice the 'async' added here
+sequelize.sync({ alter: false }).then(async () => { 
     console.log('✅ Database connected and models synced.'); 
-
-    // 👇 RUN THE SEEDER HERE BEFORE STARTING THE SERVER
     await seedUsers();
 
-    // ==========================================
-    // 👇 ADD THIS TO SERVE THE ANGULAR FRONTEND
-    // ==========================================
-    // Serve static files from the 'public' folder
     app.use(express.static(path.join(baseDir, 'public')));
-
-    // Fallback for Angular routing: if no API route matches, send index.html
     app.get(/.*/, (req, res) => {
         if (!req.url.startsWith('/api')) {
             res.sendFile(path.join(baseDir, 'public', 'index.html'));
+        } 
+        else {
+            // 👇 ADD THIS ELSE BLOCK
+            res.status(404).json({ error: "API route not found" });
         }
     });
 

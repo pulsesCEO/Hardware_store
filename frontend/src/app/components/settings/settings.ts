@@ -256,9 +256,29 @@ editAdminData: any = { name: '', email: '', password: '' };
     else this.adminModules.push(childKey);
   }
 
-  saveAdminModules() {
-    const payload = { email: this.selectedAdmin.email, enabled_modules: this.adminModules };
-    this.settingsService.saveUserPermissions(payload).subscribe({
+  // saveAdminModules() {
+  //   const payload = { email: this.selectedAdmin.email, enabled_modules: this.adminModules };
+  //   this.settingsService.saveUserPermissions(payload).subscribe({
+  //     next: (res: any) => {
+  //       this.message = 'Admin access updated!';
+  //       this.selectedAdmin = null;
+  //       this.loadAdmins();
+  //       setTimeout(() => this.message = '', 3000);
+  //     },
+  //     error: (err: any) => {
+  //       this.message = 'Failed to update admin access.';
+  //       setTimeout(() => this.message = '', 3000);
+  //     }
+  //   });
+  // } 
+
+
+    saveAdminModules() {
+    // Create the payload with enabled_modules
+    const payload = { enabled_modules: this.adminModules };
+    
+    // Call the API to update this specific user by ID
+    this.authService.updateUserModules(this.selectedAdmin.id, payload).subscribe({
       next: (res: any) => {
         this.message = 'Admin access updated!';
         this.selectedAdmin = null;
@@ -271,7 +291,6 @@ editAdminData: any = { name: '', email: '', password: '' };
       }
     });
   } 
-
 openEditAdminModal(admin: any) {
   this.editingAdmin = admin;
   this.editAdminData = { name: admin.name, email: admin.email, password: '' };

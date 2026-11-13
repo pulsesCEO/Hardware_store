@@ -4,28 +4,52 @@ const InvoiceItem = require('../models/salesModel/invoiceItemModel');
 const Product = require('../models/mastersModel/productModel');
 const Customer = require('../models/mastersModel/customerModel');
 const Ledger = require('../models/ledgerModel');
+const Settings = require('../models/settingsModel'); 
+const User = require('../models/userModel');
+
+
 
 exports.createSale = async (req, res) => {
-    const t = await sequelize.transaction(); // Start transaction
+    const t = await sequelize.transaction();
 
     try {
-        const { customer_id, items, payment_mode, sub_total, tax_amount, total_amount } = req.body;
+        const { customer_id, items, payment_mode, sub_total, tax_amount, total_amount, user_id } = req.body;
 
-        // 1. Generate a unique Invoice Number
         const invoice_no = 'INV-' + Date.now().toString().slice(-6);
 
-        // 2. Create the Invoice Header
         const newInvoice = await Invoice.create({
-            invoice_no,
-            customer_id: customer_id || null,
-            sub_total,
-            tax_amount,
-            total_amount,
-            payment_mode,
+            invoice_no, customer_id: customer_id || null,
+            sub_total, tax_amount, total_amount, payment_mode,
             status: payment_mode === 'Store Credit' ? 'Unpaid' : 'Paid'
         }, { transaction: t });
 
-        // 3. Loop through items
+        // --- BULLETPROOF PERMISSION LOGIC ---
+        let isInventoryEnabled = false;
+
+        if (user_id) {
+            const user = await User.findByPk(user_id);
+            
+            if (user) {
+                if (user.role === 'super_admin') {
+                    isInventoryEnabled = true;
+                } else {
+                    // 👇 FIXED: USING enabled_modules INSTEAD OF allowed_modules
+                    let enabledModules = user.enabled_modules;
+                    
+                    if (!enabledModules) {
+                        enabledModules = [];
+                    }
+                    if (typeof enabledModules === 'string') {
+                        try { enabledModules = JSON.parse(enabledModules); } catch (e) { enabledModules = []; }
+                    }
+                    
+                    isInventoryEnabled = enabledModules.includes('inventory');
+                }
+            }
+        }
+        
+        console.log(`🛒 SALE by User ${user_id} - Deduct Stock? ${isInventoryEnabled}`);
+
         for (let item of items) {
             await InvoiceItem.create({
                 invoice_id: newInvoice.id,
@@ -35,15 +59,15 @@ exports.createSale = async (req, res) => {
                 total_price: (item.quantity * item.unit_price)
             }, { transaction: t });
 
-            // Deduct stock from Inventory
-            await Product.decrement('stock_level', {
-                by: item.quantity,
-                where: { id: item.product_id },
-                transaction: t
-            });
+            if (isInventoryEnabled) {
+                await Product.decrement('stock_level', {
+                    by: item.quantity,
+                    where: { id: item.product_id },
+                    transaction: t
+                });
+            }
         }
 
-        // 4. Handle Store Credit (Update Customer Outstanding)
         if (payment_mode === 'Store Credit' && customer_id) {
             await Customer.increment('outstanding_balance', {
                 by: total_amount,
@@ -52,7 +76,6 @@ exports.createSale = async (req, res) => {
             });
         }
 
-        // 5. Log to General Ledger
         await Ledger.create({
             description: `Sale - ${items.length} items (${invoice_no})`,
             type: 'INFLOW',
@@ -60,15 +83,23 @@ exports.createSale = async (req, res) => {
             reference_id: invoice_no
         }, { transaction: t });
 
-        await t.commit(); // Save everything
+        await t.commit();
         res.status(201).json({ message: "Sale completed successfully!", invoice_no, id: newInvoice.id });
 
     } catch (error) {
-        await t.rollback(); // Cancel everything if error
+        await t.rollback();
         console.error("SALE ERROR:", error);
         res.status(500).json({ error: "Failed to process sale. " + error.message });
     }
 };
+
+exports.getAllSales = async (req, res) => {
+    try {
+        const sales = await Invoice.findAll({ order: [['id', 'DESC']] });
+        res.json(sales);
+    } catch (error) { res.status(500).json({ error: "Failed to fetch sales" }); }
+};
+
 
 exports.getAllSales = async (req, res) => {
     try {

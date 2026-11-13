@@ -20,5 +20,6 @@ router.put('/users/:id', authMiddleware, authController.updateUser);
 router.delete('/users/:id', authMiddleware, authController.deleteUser);
 
 
+router.put('/users/:id/modules', authMiddleware, authController.updateUserModules);
 
 module.exports = router;

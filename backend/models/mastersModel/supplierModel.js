@@ -9,7 +9,8 @@ const Supplier = sequelize.define('Supplier', {
     email: { type: DataTypes.STRING, allowNull: true },
     gstin: { type: DataTypes.STRING, allowNull: true },
     address: { type: DataTypes.TEXT, allowNull: true },
-    outstanding_balance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 }
+    outstanding_balance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
+    created_by: { type: DataTypes.INTEGER, allowNull: true },
 }, { tableName: 'suppliers', timestamps: true });
 
 module.exports = Supplier;

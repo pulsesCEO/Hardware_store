@@ -1,32 +1,46 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { AuthService } from './auth'; // Import AuthService
 
 @Injectable({
   providedIn: 'root'
 })
 export class MasterService {
-  // This is the base URL for ALL your masters (units, customers, suppliers, etc.)
   private baseUrl = 'http://localhost:5000/api/masters';
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private authService: AuthService) { }
 
-  // 1. Generic GET: Fetch all items (e.g., pass 'units' to get units, 'customers' to get customers)
   getAll<T>(endpoint: string): Observable<T[]> {
-    return this.http.get<T[]>(`${this.baseUrl}/${endpoint}`);
+    const user = this.authService.getUser();
+    let params = new HttpParams();
+
+    // Automatically attach user_id and role to GET requests
+    if (user) {
+      params = params.set('user_id', user.id);
+      params = params.set('role', user.role);
+    }
+
+    return this.http.get<T[]>(`${this.baseUrl}/${endpoint}`, { params });
   }
 
-  // 2. Generic POST: Create a new item
   create<T>(endpoint: string, data: any): Observable<T> {
-    return this.http.post<T>(`${this.baseUrl}/${endpoint}`, data);
+    const user = this.authService.getUser();
+    
+    // Automatically attach created_by to POST requests
+    const payload = {
+      ...data,
+      created_by: user ? user.id : null
+    };
+
+    return this.http.post<T>(`${this.baseUrl}/${endpoint}`, payload);
   }
 
-  // 3. Generic PUT: Update an existing item
+  // Keep your update and delete functions the same
   update<T>(endpoint: string, id: number, data: any): Observable<T> {
     return this.http.put<T>(`${this.baseUrl}/${endpoint}/${id}`, data);
   }
 
-  // 4. Generic DELETE: Remove an item
   delete(endpoint: string, id: number): Observable<any> {
     return this.http.delete(`${this.baseUrl}/${endpoint}/${id}`);
   }

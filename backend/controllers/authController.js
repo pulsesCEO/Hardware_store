@@ -227,3 +227,23 @@ exports.deleteUser = async (req, res) => {
         res.status(500).json({ error: "Failed to delete user" });
     }
 };
+
+// 8. UPDATE USER MODULES (Save permissions)
+exports.updateUserModules = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { enabled_modules } = req.body; // 👈 USING enabled_modules
+
+        const user = await User.findByPk(id);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        await user.update({ enabled_modules: enabled_modules });
+        
+        res.json({ message: "Permissions updated successfully", user });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to update user permissions" });
+    }
+};

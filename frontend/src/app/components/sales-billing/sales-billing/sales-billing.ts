@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { MasterService } from '../../../services/master'; 
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { AuthService } from '../../../services/auth'; 
 
 @Component({
   selector: 'app-sales-billing',
@@ -19,8 +20,11 @@ export class SalesBilling implements OnInit {
   selectedCustomer: any = null;
   selectedProductId: number | null = null;
   quantity: number = 1;
-  paymentMode: string = 'Cash';
+  // paymentMode: string = 'Cash';
   
+
+    // Change this line from 'Cash' to 'Store Credit'
+  paymentMode: string = 'Store Credit';
   subTotal: number = 0;
   taxTotal: number = 0;
   grandTotal: number = 0;
@@ -32,18 +36,71 @@ export class SalesBilling implements OnInit {
   savedInvoiceNo: string = ''; 
   today = new Date(); 
 
-  constructor(private masterService: MasterService, private http: HttpClient) {}
+  // --- NEW AUTOCOMPLETE VARIABLES ---
+  allCustomers: any[] = [];
+  customerNameSearch: string = '';
+  filteredCustomers: any[] = [];
+  showDropdown: boolean = false;
+
+  constructor(
+    private masterService: MasterService, 
+    private http: HttpClient,
+    private authService: AuthService 
+  ) {}
 
   ngOnInit() {
     this.masterService.getAll<any>('products').subscribe((data: any) => this.products = data);
+    
+    // Fetch all customers for the autocomplete dropdown
+    this.masterService.getAll<any>('customers').subscribe((data: any) => {
+      this.allCustomers = data;
+    });
   }
 
+  // --- AUTOCOMPLETE LOGIC ---
+  onNameSearch() {
+    if (!this.customerNameSearch) {
+      this.filteredCustomers = [];
+      this.showDropdown = false;
+      return;
+    }
+
+    const term = this.customerNameSearch.toLowerCase();
+    this.filteredCustomers = this.allCustomers.filter(c => 
+      c.name.toLowerCase().includes(term) || c.mobile.includes(term)
+    );
+    
+    this.showDropdown = true;
+  }
+
+  selectCustomer(customer: any) {
+    this.selectedCustomer = customer;
+    this.customerMobile = customer.mobile;
+    this.customerNameSearch = customer.name;
+    this.showDropdown = false;
+    this.showMessage(`Customer: ${customer.name}`, false);
+  }
+
+  closeDropdown() {
+    // Small delay so the click event on the dropdown item registers before it closes
+    setTimeout(() => { this.showDropdown = false; }, 200);
+  }
+  // -------------------------
+
   findCustomer() {
-    if (!this.customerMobile) { this.selectedCustomer = null; return; }
+    if (!this.customerMobile) { this.selectedCustomer = null; this.customerNameSearch = ''; return; }
     this.masterService.getAll<any>('customers').subscribe((customers: any) => {
       const found = customers.find((c: any) => c.mobile === this.customerMobile);
-      if (found) { this.selectedCustomer = found; this.showMessage(`Customer: ${found.name}`, false); } 
-      else { this.selectedCustomer = null; this.showMessage('Customer not found. Walk-in customer used.', true); }
+      if (found) { 
+        this.selectedCustomer = found; 
+        this.customerNameSearch = found.name; // Auto-fill name if found by mobile
+        this.showMessage(`Customer: ${found.name}`, false); 
+      } 
+      else { 
+        this.selectedCustomer = null; 
+        this.customerNameSearch = '';
+        this.showMessage('Customer not found. Walk-in customer used.', true); 
+      }
     });
   }
 
@@ -87,9 +144,65 @@ export class SalesBilling implements OnInit {
     this.grandTotal = this.subTotal + this.taxTotal;
   }
 
+  // saveInvoice() {
+  //   if (this.cart.length === 0) return;
+  //   this.isSaving = true;
+
+  //   const currentUser = this.authService.getUser();
+
+  //   const payload = {
+  //     customer_id: this.selectedCustomer ? this.selectedCustomer.id : null,
+  //     items: this.cart,
+  //     sub_total: this.subTotal,
+  //     tax_amount: this.taxTotal,
+  //     total_amount: this.grandTotal,
+  //     payment_mode: this.paymentMode,
+  //     user_id: currentUser ? currentUser.id : null 
+  //   };
+
+  //   this.http.post<any>('http://localhost:5000/api/sales', payload).subscribe({
+  //     next: (res) => {
+  //       this.isSaving = false;
+  //       this.savedInvoiceNo = res.invoice_no; 
+  //       this.showMessage(`Invoice ${res.invoice_no} saved successfully!`, false);
+  //     },
+  //     error: (err) => {
+  //       this.isSaving = false;
+  //       this.showMessage(err.error?.error || 'Failed to save invoice', true);
+  //     }
+  //   });
+  // }
   saveInvoice() {
     if (this.cart.length === 0) return;
+
+    // --- NEW: CREDIT LIMIT VALIDATION ---
+    if (this.paymentMode === 'Store Credit') {
+      // 1. Make sure a customer is actually selected
+      if (!this.selectedCustomer) {
+        this.showMessage('Store Credit requires a registered customer. Please select a customer.', true);
+        return; 
+      }
+
+      // 2. Convert to numbers to prevent string math errors
+      const currentOutstanding = Number(this.selectedCustomer.outstanding_balance) || 0;
+      const creditLimit = Number(this.selectedCustomer.credit_limit) || 0;
+      const newTotalDue = currentOutstanding + this.grandTotal;
+
+      // 3. Check if the new total exceeds the limit
+      if (newTotalDue > creditLimit) {
+        this.showMessage(
+          `Credit Limit Exceeded for ${this.selectedCustomer.name}! Limit: ₹${creditLimit}, Current Due: ₹${currentOutstanding}, New Bill: ₹${this.grandTotal}`, 
+          true
+        );
+        return; // Stop the invoice from saving
+      }
+    }
+    // ------------------------------------
+
+    // If it's Cash or UPI, or the limit is fine, proceed to save
     this.isSaving = true;
+
+    const currentUser = this.authService.getUser();
 
     const payload = {
       customer_id: this.selectedCustomer ? this.selectedCustomer.id : null,
@@ -97,7 +210,8 @@ export class SalesBilling implements OnInit {
       sub_total: this.subTotal,
       tax_amount: this.taxTotal,
       total_amount: this.grandTotal,
-      payment_mode: this.paymentMode
+      payment_mode: this.paymentMode,
+      user_id: currentUser ? currentUser.id : null 
     };
 
     this.http.post<any>('http://localhost:5000/api/sales', payload).subscribe({
@@ -113,16 +227,20 @@ export class SalesBilling implements OnInit {
     });
   }
 
+
   startNewBill() {
     this.cart = [];
     this.customerMobile = '';
+    this.customerNameSearch = ''; // Clear name search
     this.selectedCustomer = null;
     this.savedInvoiceNo = '';
+     //line so the next bill also defaults to Store Credit
+    this.paymentMode = 'Store Credit'; 
     this.calculateTotals();
   }
 
   // ==========================================
-  // NEW A4 PRINT LOGIC
+  // A4 PRINT LOGIC
   // ==========================================
   printInvoice() {
     if (!this.savedInvoiceNo) {
@@ -130,7 +248,6 @@ export class SalesBilling implements OnInit {
       return;
     }
 
-    // 1. Generate the rows for the items table
     let itemsHtml = '';
     this.cart.forEach(item => {
       itemsHtml += `
@@ -143,7 +260,6 @@ export class SalesBilling implements OnInit {
       `;
     });
 
-    // 2. Build the HTML page with A4 sizing
     const printHtml = `
       <html>
         <head>
@@ -226,7 +342,6 @@ export class SalesBilling implements OnInit {
       </html>
     `;
 
-    // 3. Open a new window and print
     const printWindow = window.open('', '_blank', 'width=900,height=650');
     if (printWindow) {
       printWindow.document.open();
@@ -236,7 +351,7 @@ export class SalesBilling implements OnInit {
       printWindow.onload = () => {
         printWindow.focus();
         printWindow.print();
-        printWindow.close(); // Automatically close the window after printing
+        printWindow.close();
       };
     }
   }

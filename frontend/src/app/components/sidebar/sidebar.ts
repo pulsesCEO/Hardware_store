@@ -59,4 +59,5 @@ export class SidebarComponent implements OnInit {
       return hasParentAccess ? { ...item, children: allowedChildren } : null;
     }).filter(item => item !== null) as any[];
   }
+  
 }

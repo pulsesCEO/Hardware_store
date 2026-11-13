@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MasterService } from '../../../services/master';
+import { SettingsService } from '../../../services/settings';
 
 @Component({
   selector: 'app-product-form',
@@ -10,8 +11,10 @@ import { MasterService } from '../../../services/master';
   imports: [FormsModule, CommonModule],
   templateUrl: './product-form.html',
   styleUrl: './product-form.css'
-})
+}) 
 export class ProductForm implements OnInit {
+    isInventoryEnabled: boolean = true;
+
   // 1. Added gst_id to the object
   product = { sku: '', name: '', unit_id: null, gst_id: null, cost_price: 0, selling_price: 0, stock_level: 0, min_stock: 5 };
   
@@ -23,9 +26,16 @@ export class ProductForm implements OnInit {
   message = '';
   isError = false;
 
-  constructor(private masterService: MasterService, private router: Router, private route: ActivatedRoute) {}
+  constructor(private masterService: MasterService, private router: Router, private route: ActivatedRoute,private settingsService: SettingsService) {}
 
   ngOnInit() {
+    
+       this.settingsService.getSettings().subscribe(settings => {
+      const enabledModules = settings.enabled_modules || [];
+      this.isInventoryEnabled = enabledModules.includes('inventory');
+    });
+    
+  
     // Fetch Units for the dropdown
     this.masterService.getAll<any>('units').subscribe(data => this.units = data);
     

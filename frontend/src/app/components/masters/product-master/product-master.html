@@ -24,9 +24,10 @@
   </div>
 
   <!-- SUMMARY CARDS -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 shrink-0">
+  <!-- Dynamic grid columns: 3 if inventory is on, 1 if inventory is off -->
+  <div class="grid grid-cols-1 gap-6 mb-6 shrink-0" [ngClass]="isInventoryEnabled ? 'md:grid-cols-3' : 'md:grid-cols-1'">
     
-    <!-- Card 1: Total Products (Emerald Gradient) -->
+    <!-- Card 1: Total Products (Always Visible) -->
     <div class="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-xl shadow-md shadow-emerald-500/20 text-white flex items-center justify-between transform transition-transform hover:scale-[1.02]">
       <div>
         <p class="text-emerald-100 text-sm font-medium mb-1">Total Products</p>
@@ -37,27 +38,31 @@
       </div>
     </div>
 
-    <!-- Card 2: Total Stock Value (Blue Gradient) -->
-    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-xl shadow-md shadow-blue-500/20 text-white flex items-center justify-between transform transition-transform hover:scale-[1.02]">
-      <div>
-        <p class="text-blue-100 text-sm font-medium mb-1">Total Inventory Value</p>
-        <h3 class="text-3xl font-bold">₹{{ totalStockValue | number:'1.0-0' }}</h3>
+    <!-- Card 2: Total Stock Value (Only if Inventory is enabled) -->
+    @if (isInventoryEnabled) {
+      <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-xl shadow-md shadow-blue-500/20 text-white flex items-center justify-between transform transition-transform hover:scale-[1.02]">
+        <div>
+          <p class="text-blue-100 text-sm font-medium mb-1">Total Inventory Value</p>
+          <h3 class="text-3xl font-bold">₹{{ totalStockValue | number:'1.0-0' }}</h3>
+        </div>
+        <div class="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
       </div>
-      <div class="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-      </div>
-    </div>
+    }
 
-    <!-- Card 3: Low Stock Alert (Red/Orange Gradient) -->
-    <div class="bg-gradient-to-br from-red-500 to-orange-500 p-6 rounded-xl shadow-md shadow-red-500/20 text-white flex items-center justify-between transform transition-transform hover:scale-[1.02]">
-      <div>
-        <p class="text-red-100 text-sm font-medium mb-1">Low Stock Items</p>
-        <h3 class="text-3xl font-bold">{{ lowStockCount }}</h3>
+    <!-- Card 3: Low Stock Alert (Only if Inventory is enabled) -->
+    @if (isInventoryEnabled) {
+      <div class="bg-gradient-to-br from-red-500 to-orange-500 p-6 rounded-xl shadow-md shadow-red-500/20 text-white flex items-center justify-between transform transition-transform hover:scale-[1.02]">
+        <div>
+          <p class="text-red-100 text-sm font-medium mb-1">Low Stock Items</p>
+          <h3 class="text-3xl font-bold">{{ lowStockCount }}</h3>
+        </div>
+        <div class="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        </div>
       </div>
-      <div class="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-      </div>
-    </div>
+    }
   </div>
 
   <!-- Main Table Area -->
@@ -73,8 +78,14 @@
             <th class="p-4 bg-gray-50">Unit</th>
             <th class="p-4 bg-gray-50 text-right">Cost Price</th>
             <th class="p-4 bg-gray-50 text-right">Selling Price</th>
-            <th class="p-4 bg-gray-50 text-right">Stock Level</th>
+            
+            <!-- Hide Stock Level Header if Inventory is off -->
+            @if (isInventoryEnabled) {
+              <th class="p-4 bg-gray-50 text-right">Stock Level</th>
+            }
+            
             <th class="p-4 bg-gray-50 text-center w-24">Actions</th>
+            <th class="p-4 bg-gray-50">Created By</th>
           </tr>
         </thead>
         
@@ -108,12 +119,14 @@
               <!-- Selling Price -->
               <td class="p-4 text-right text-gray-800 font-bold">₹{{ prod.selling_price }}</td>
               
-              <!-- Stock Level -->
-              <td class="p-4 text-right font-bold text-base">
-                <span [ngClass]="prod.stock_level <= prod.min_stock ? 'text-red-600 bg-red-50 px-2 py-1 rounded-md' : 'text-green-600'">
-                  {{ prod.stock_level }}
-                </span>
-              </td>
+              <!-- Hide Stock Level Cell if Inventory is off -->
+              @if (isInventoryEnabled) {
+                <td class="p-4 text-right font-bold text-base">
+                  <span [ngClass]="prod.stock_level <= prod.min_stock ? 'text-red-600 bg-red-50 px-2 py-1 rounded-md' : 'text-green-600'">
+                    {{ prod.stock_level }}
+                  </span>
+                </td>
+              }
               
               <!-- Actions -->
               <td class="p-4">
@@ -126,10 +139,16 @@
                   </button>
                 </div>
               </td>
+              
+              <!-- Created By -->
+              <td class="p-4 text-gray-600 text-sm font-medium">
+                {{ prod.creator?.name || 'System' }}
+              </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="p-8 text-center text-gray-500">
+              <!-- Adjust colspan dynamically based on whether stock column is hidden -->
+              <td [attr.colspan]="isInventoryEnabled ? 7 : 6" class="p-8 text-center text-gray-500">
                 <p>No products found matching your search.</p>
               </td>
             </tr>
