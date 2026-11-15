@@ -1,14 +1,63 @@
 const Customer = require('../../models/mastersModel/customerModel'); // Notice the ../../
+const getAllowedUserIds = require('../../utils/getAllowedUserIds'); // <-- Import
+const { Op } = require('sequelize');
+
+// exports.getAllCustomers = async (req, res) => {
+//     try {
+//         const customers = await Customer.findAll({ order: [['id', 'DESC']] });
+//         res.json(customers);
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ error: "Failed to fetch customers" });
+//     }
+// };
+
+
+// exports.getAllCustomers = async (req, res) => {
+//     try {
+//         const { user_id, role } = req.query;
+//         let whereClause = {};
+
+//         // If the user is an Admin, only show customers THEY created
+//         if (role === 'admin' && user_id) {
+//             whereClause.created_by = user_id;
+//         }
+
+//         const customers = await Customer.findAll({ 
+//             where: whereClause,
+//             order: [['id', 'DESC']] 
+//         });
+//         res.json(customers);
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ error: "Failed to fetch customers" });
+//     }
+// }; 
 
 exports.getAllCustomers = async (req, res) => {
     try {
-        const customers = await Customer.findAll({ order: [['id', 'DESC']] });
+        const { user_id, role } = req.query;
+        let whereClause = {};
+
+        // Get the list of allowed IDs for this user
+        const allowedIds = await getAllowedUserIds(user_id, role);
+
+        if (allowedIds) {
+            whereClause.created_by = { [Op.in]: allowedIds }; 
+        }
+
+        const customers = await Customer.findAll({ 
+            where: whereClause,
+            order: [['id', 'DESC']] 
+        });
         res.json(customers);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Failed to fetch customers" });
     }
 };
+
+
 
 exports.createCustomer = async (req, res) => {
     try {

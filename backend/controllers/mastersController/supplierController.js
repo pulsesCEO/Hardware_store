@@ -1,13 +1,15 @@
 const Supplier = require('../../models/mastersModel/supplierModel');
+const getAllowedUserIds = require('../../utils/getAllowedUserIds');
+const { Op } = require('sequelize');
 
-// 1. GET ALL SUPPLIERS (Filtered by Admin)
 exports.getAllSuppliers = async (req, res) => {
     try {
         const { user_id, role } = req.query;
         let whereClause = {};
         
-        if (role === 'admin' && user_id) {
-            whereClause.created_by = user_id;
+        const allowedIds = await getAllowedUserIds(user_id, role);
+        if (allowedIds) {
+            whereClause.created_by = { [Op.in]: allowedIds };
         }
 
         const suppliers = await Supplier.findAll({ 
@@ -21,7 +23,7 @@ exports.getAllSuppliers = async (req, res) => {
     }
 };
 
-// 2. CREATE SUPPLIER
+// ... (Keep your createSupplier, updateSupplier, and deleteSupplier exactly as they are)
 exports.createSupplier = async (req, res) => {
     try {
         const newSupplier = await Supplier.create(req.body);
@@ -34,7 +36,6 @@ exports.createSupplier = async (req, res) => {
     }
 };
 
-// 3. UPDATE SUPPLIER (This was missing!)
 exports.updateSupplier = async (req, res) => {
     try {
         const [updated] = await Supplier.update(req.body, { where: { id: req.params.id } });
@@ -49,7 +50,6 @@ exports.updateSupplier = async (req, res) => {
     }
 };
 
-// 4. DELETE SUPPLIER (This was missing!)
 exports.deleteSupplier = async (req, res) => {
     try {
         const deleted = await Supplier.destroy({ where: { id: req.params.id } });
