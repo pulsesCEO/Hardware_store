@@ -1,12 +1,25 @@
 const Gst = require('../../models/mastersModel/gstModel');
+const getAllowedUserIds = require('../../utils/getAllowedUserIds');
+const { Op } = require('sequelize');
 
 exports.getAllGst = async (req, res) => {
     try {
-        const gstList = await Gst.findAll({ order: [['id', 'DESC']] });
+        const { user_id, role } = req.query;
+        let whereClause = {};
+        
+        const allowedIds = await getAllowedUserIds(user_id, role);
+        if (allowedIds) {
+            whereClause.created_by = { [Op.in]: allowedIds };
+        }
+
+        const gstList = await Gst.findAll({ where: whereClause, order: [['id', 'DESC']] });
         res.json(gstList);
-    } catch (error) { res.status(500).json({ error: "Failed to fetch GST" }); }
+    } catch (error) { 
+        res.status(500).json({ error: "Failed to fetch GST" }); 
+    }
 };
 
+// ... (Keep your createGst, updateGst, and deleteGst as they are)
 exports.createGst = async (req, res) => {
     try {
         const newGst = await Gst.create(req.body);

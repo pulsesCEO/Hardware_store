@@ -1,9 +1,25 @@
 const Bank = require('../../models/mastersModel/bankModel');
+const getAllowedUserIds = require('../../utils/getAllowedUserIds');
+const { Op } = require('sequelize');
 
 exports.getAllBanks = async (req, res) => {
-    try { res.json(await Bank.findAll({ order: [['id', 'DESC']] })); } 
-    catch (error) { res.status(500).json({ error: "Failed to fetch banks" }); }
+    try {
+        const { user_id, role } = req.query;
+        let whereClause = {};
+        
+        const allowedIds = await getAllowedUserIds(user_id, role);
+        if (allowedIds) {
+            whereClause.created_by = { [Op.in]: allowedIds };
+        }
+
+        const banks = await Bank.findAll({ where: whereClause, order: [['id', 'DESC']] });
+        res.json(banks);
+    } catch (error) { 
+        res.status(500).json({ error: "Failed to fetch banks" }); 
+    }
 };
+
+// ... (Keep your createBank, updateBank, and deleteBank as they are)
 exports.createBank = async (req, res) => {
     try { res.status(201).json(await Bank.create(req.body)); } 
     catch (error) { res.status(500).json({ error: "Failed to create bank" }); }

@@ -9,7 +9,8 @@ const Customer = sequelize.define('Customer', {
     gstin: { type: DataTypes.STRING, allowNull: true },   
     address: { type: DataTypes.TEXT, allowNull: true },   
     credit_limit: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
-    outstanding_balance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 }
+    outstanding_balance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
+      created_by: { type: DataTypes.INTEGER, allowNull: true } 
 }, { tableName: 'customers', timestamps: true });
 
 module.exports = Customer;

@@ -28,6 +28,7 @@ const Supplier = require('./models/mastersModel/supplierModel');
 const Purchase = require('./models/salesModel/purchaseModel');
 const PurchaseItem = require('./models/salesModel/purchaseItemModel');
 const ledgerRoutes = require('./routes/ledgerRoutes');
+const statementRoutes = require('./routes/statementRoutes');
 const User = require('./models/userModel');
 // ==========================================
 // 👇 3. DATABASE RELATIONSHIPS (Centralized)
@@ -71,7 +72,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/inventory', inventoryRoutes); 
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/ledgers', ledgerRoutes);
-
+app.use('/api/statements', statementRoutes);
 app.get('/api/health', async (req, res) => {
     try {
         await sequelize.authenticate();

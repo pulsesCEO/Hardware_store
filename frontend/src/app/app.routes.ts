@@ -22,6 +22,10 @@ import { ProductForm } from './components/masters/product-form/product-form';
 import { GstMaster } from './components/masters/gst-master/gst-master';
 import { BankMaster } from './components/masters/bank-master/bank-master';
 import { UserMaster } from './components/masters/user-master/user-master';
+import { PigmyMachine } from './components/pigmy-machine/pigmy-machine/pigmy-machine';
+import { ExportData } from './components/pigmy-machine/export-data/export-data';
+import { ImportData } from './components/pigmy-machine/import-data/import-data';
+import { Statement } from './components/statements/statement/statement';
 
 export const routes: Routes = [
   // 1. PUBLIC ROUTE (No Guard)
@@ -127,6 +131,32 @@ export const routes: Routes = [
     canActivate: [AuthGuard], 
     data: { roles: ['super_admin', 'admin','staff'], moduleKey: 'masters_users' } 
   },
+
+
+  { 
+    path: 'pigmy-machine', 
+    component: PigmyMachine, 
+    canActivate: [AuthGuard], 
+    data: { roles: ['super_admin', 'admin'] } 
+  },
+  { 
+    path: 'pigmy-machine/export', 
+    component: ExportData, 
+    canActivate: [AuthGuard], 
+    data: { roles: ['super_admin', 'admin'] } 
+  },
+  { 
+    path: 'pigmy-machine/import', 
+    component: ImportData, 
+    canActivate: [AuthGuard], 
+    data: { roles: ['super_admin', 'admin'] } 
+  },
+{ path: 'statements', component: Statement, canActivate: [AuthGuard] },
+
+
+
+
+
 
   // 4. ACCESS DENIED PAGE
   { path: 'access-denied', component: AccessDenied, canActivate: [AuthGuard] },

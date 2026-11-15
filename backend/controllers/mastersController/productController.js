@@ -1,17 +1,18 @@
 const Product = require('../../models/mastersModel/productModel');
-const Unit = require('../../models/unitModel'); // <-- CHANGE THIS LINE (remove mastersModel)
+const Unit = require('../../models/unitModel'); 
 const Gst = require('../../models/mastersModel/gstModel');
-const User = require('../../models/userModel'); // <-- ADD THIS LINE
+const User = require('../../models/userModel'); 
+const getAllowedUserIds = require('../../utils/getAllowedUserIds');
+const { Op } = require('sequelize');
 
-
-// 1. GET ALL PRODUCTS (Filtered by Admin)
 exports.getAllProducts = async (req, res) => {
     try {
         const { user_id, role } = req.query;
         let whereClause = {};
         
-        if (role === 'admin' && user_id) {
-            whereClause.created_by = user_id;
+        const allowedIds = await getAllowedUserIds(user_id, role);
+        if (allowedIds) {
+            whereClause.created_by = { [Op.in]: allowedIds };
         }
 
         const products = await Product.findAll({ 
@@ -19,7 +20,7 @@ exports.getAllProducts = async (req, res) => {
             include: [
                 { model: Unit, as: 'unit' },
                 { model: Gst, as: 'gst' },
-                { model: User, as: 'creator', attributes: ['name'] } // <-- Include Creator Name
+                { model: User, as: 'creator', attributes: ['name'] } 
             ],
             order: [['id', 'DESC']] 
         });
@@ -30,20 +31,14 @@ exports.getAllProducts = async (req, res) => {
     }
 };
 
-// 2. CREATE PRODUCT
+// ... (Keep your createProduct, updateProduct, and deleteProduct exactly as they are)
 exports.createProduct = async (req, res) => {
     try {
         const { sku, created_by } = req.body;
-
-        // Check if THIS admin already has a product with this SKU
-        const existingProduct = await Product.findOne({ 
-            where: { sku: sku, created_by: created_by } 
-        });
-
+        const existingProduct = await Product.findOne({ where: { sku: sku, created_by: created_by } });
         if (existingProduct) {
             return res.status(400).json({ error: "You already have a product with this SKU." });
         }
-
         const newProduct = await Product.create(req.body);
         res.status(201).json(newProduct);
     } catch (error) {
@@ -52,7 +47,6 @@ exports.createProduct = async (req, res) => {
     }
 };
 
-// 3. UPDATE PRODUCT
 exports.updateProduct = async (req, res) => {
     try {
         const [updated] = await Product.update(req.body, { where: { id: req.params.id } });
@@ -67,7 +61,6 @@ exports.updateProduct = async (req, res) => {
     }
 };
 
-// 4. DELETE PRODUCT
 exports.deleteProduct = async (req, res) => {
     try {
         const deleted = await Product.destroy({ where: { id: req.params.id } });

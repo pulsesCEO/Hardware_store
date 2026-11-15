@@ -74,13 +74,25 @@ exports.createSale = async (req, res) => {
                 where: { id: customer_id },
                 transaction: t
             });
+        } 
+
+
+
+          // Fetch the customer name for the ledger description
+        let customerName = 'Walk-in Customer';
+        if (customer_id) {
+            const cust = await Customer.findByPk(customer_id);
+            if (cust) customerName = cust.name;
         }
 
         await Ledger.create({
-            description: `Sale - ${items.length} items (${invoice_no})`,
+            // description: `Sale - ${items.length} items (${invoice_no})`,
+              description: `Sale to ${customerName} (${invoice_no})`,
             type: 'INFLOW',
             amount: total_amount,
-            reference_id: invoice_no
+            reference_id: invoice_no,
+            customer_id: customer_id || null,
+             created_by: req.body.user_id
         }, { transaction: t });
 
         await t.commit();

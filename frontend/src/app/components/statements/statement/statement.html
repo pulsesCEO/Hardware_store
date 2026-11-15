@@ -1,0 +1,141 @@
+<div class="p-8 max-w-7xl mx-auto w-full print:p-0">
+
+  <!-- Header -->
+  <div class="flex justify-between items-start mb-6 print:hidden">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800">Sundry Statement</h1>
+      <p class="text-gray-500 text-sm mt-1">Period: {{ fromDate }} to {{ toDate }}</p>
+    </div>
+    <button (click)="printStatement()" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg shadow-sm font-medium hover:bg-gray-50 flex items-center">
+      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+      Print statement
+    </button>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap gap-4 items-end mb-6 shadow-sm print:hidden">
+    
+    <!-- Tabs -->
+    <div class="flex gap-2">
+      <button (click)="switchTab('debtors')" 
+              [ngClass]="currentTab === 'debtors' ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'"
+              class="px-4 py-2 rounded-lg font-medium text-sm transition-colors">Sundry Debtors</button>
+      <button (click)="switchTab('creditors')" 
+              [ngClass]="currentTab === 'creditors' ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'"
+              class="px-4 py-2 rounded-lg font-medium text-sm transition-colors">Sundry Creditors</button>
+    </div>
+
+    <div class="flex-1 flex justify-end gap-4 items-end">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Account</label>
+        <select [(ngModel)]="selectedId" (change)="loadStatement()" 
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-gray-800">
+          <option [ngValue]="null" disabled>Select an account</option>
+          
+          @if (currentTab === 'debtors') {
+            @for (cust of customers; track cust.id) {
+              <option [ngValue]="cust.id">{{ cust.name }}</option>
+            }
+          } @else {
+            @for (sup of suppliers; track sup.id) {
+              <option [ngValue]="sup.id">{{ sup.company_name }}</option>
+            }
+          }
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">From date</label>
+        <input type="date" [(ngModel)]="fromDate" (change)="loadStatement()" 
+               class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-gray-700">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">To date</label>
+        <input type="date" [(ngModel)]="toDate" (change)="loadStatement()" 
+               class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-gray-700">
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <p class="text-sm font-medium text-gray-500 mb-2">Total debit</p>
+      <h3 class="text-3xl font-bold text-green-500">₹{{ statementData.totalDebit | number:'1.2-2' }}</h3>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <p class="text-sm font-medium text-gray-500 mb-2">Total credit</p>
+      <h3 class="text-3xl font-bold text-red-500">₹{{ statementData.totalCredit | number:'1.2-2' }}</h3>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <p class="text-sm font-medium text-gray-500 mb-2">Grand total balance</p>
+      <h3 class="text-3xl font-bold text-gray-900">₹{{ statementData.grandTotal | number:'1.2-2' }}</h3>
+      <p class="text-xs text-gray-400 mt-1">{{ statementData.grandTotal > 0 ? 'Debit balance (You Owe)' : (statementData.grandTotal < 0 ? 'Credit balance (They Owe)' : 'Settled') }}</p>
+    </div>
+  </div>
+
+  <!-- Statement Table -->
+  @if (selectedId) {
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      
+      <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-100">
+        <div>
+          <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Account Statement • {{ fromDate }} → {{ toDate }}</p>
+          <h2 class="text-2xl font-bold text-gray-800">{{ selectedName }}</h2>
+        </div>
+        <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded text-xs font-bold">
+          {{ statementData.transactions.length }} entries
+        </span>
+      </div>
+
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-gray-200">
+            <th class="py-3 px-2">Date</th>
+            <th class="py-3 px-2">Reference</th>
+            <th class="py-3 px-2">Particulars</th>
+            <th class="py-3 px-2 text-right">Debit</th>
+            <th class="py-3 px-2 text-right">Credit</th>
+            <th class="py-3 px-2 text-right">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (txn of statementData.transactions; track txn.reference) {
+            <tr class="border-b border-gray-50 hover:bg-gray-50 text-sm">
+              <td class="py-3 px-2 text-gray-600">{{ txn.date | date:'mediumDate' }}</td>
+              <td class="py-3 px-2 text-gray-600 font-mono text-xs">{{ txn.reference }}</td>
+              <td class="py-3 px-2 font-medium text-gray-800">{{ txn.particulars }}</td>
+              <td class="py-3 px-2 text-right text-gray-800">{{ txn.debit > 0 ? '₹' + txn.debit : '-' }}</td>
+              <td class="py-3 px-2 text-right text-gray-800">{{ txn.credit > 0 ? '₹' + txn.credit : '-' }}</td>
+              <td class="py-3 px-2 text-right font-bold" [ngClass]="txn.balance > 0 ? 'text-red-600' : 'text-green-600'">
+                ₹{{ txn.balance }}
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="py-12 text-center text-gray-400">
+                No transactions in this date range.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <!-- Grand Total Row -->
+      <div class="mt-4 pt-4 border-t-2 border-gray-800 flex justify-end gap-12 text-sm font-bold text-gray-800 pr-4">
+        <div>Grand total</div>
+        <div class="w-24 text-right">₹{{ statementData.totalDebit }}</div>
+        <div class="w-24 text-right">₹{{ statementData.totalCredit }}</div>
+        <div class="w-24 text-right">₹{{ statementData.grandTotal }}</div>
+      </div>
+
+    </div>
+  } @else {
+    <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+      <svg class="w-16 h-16 text-gray-200 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+      <h3 class="text-lg font-bold text-gray-800 mb-1">Select an Account</h3>
+      <p class="text-gray-500">Choose a {{ currentTab === 'debtors' ? 'Customer' : 'Supplier' }} from the dropdown above to view their statement.</p>
+    </div>
+  }
+</div>
